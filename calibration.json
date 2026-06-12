@@ -1,0 +1,24 @@
+{
+  "source_points": [
+    [
+      943,
+      216
+    ],
+    [
+      1748,
+      272
+    ],
+    [
+      1484,
+      699
+    ],
+    [
+      254,
+      471
+    ]
+  ],
+  "real_width_m": 6.0,
+  "real_length_m": 7.0,
+  "frame_width": 2880,
+  "frame_height": 1620
+}

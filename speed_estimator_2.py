@@ -1,34 +1,3 @@
-"""
-local_speed_runner.py
-─────────────────────
-Runs SpeedEstimator._process_frame directly on your local CPU machine
-and pipes annotated frames to a C++ RTSP streamer (live_streaming).
-
-No command-line arguments needed — edit the RUN CONFIG block below,
-then just run:   python local_speed_runner.py
-
-What this file does differently from the server version (main_k.py):
-  • No GPU required  — forces CPU-only inference everywhere
-  • Annotated frames are written to a named pipe (FIFO) so the companion
-    C++ program (live_streaming) can forward them as RTSP via MediaMTX
-  • No cv2.imshow preview by default (headless pipe mode)
-  • Saves annotated output to a video file alongside the input (optional)
-  • Still writes speed estimates to MongoDB (same DB as the server)
-  • Still loads calibration from MongoDB (same collection)
-
-Requirements (install once):
-  pip install ultralytics opencv-python pymongo supervision
-  # supervision is optional but gives better tracking (ByteTrack)
-
-How it connects to live_streaming (C++):
-  1. This script creates a named pipe at PIPE_PATH (default: /tmp/speed_pipe)
-     and writes raw BGR frames in the format: width(4B LE) | height(4B LE) | pixels
-  2. The C++ program reads from that pipe as its RTSP_CAMERA_URL using
-     ffmpeg's rawvideo demuxer and forwards the stream to MediaMTX as
-     rtsp://<server>:8554/mycamera
-  3. Start order: run this script first, then live_streaming — or start
-     both; this script will block on the pipe open until the C++ reader connects.
-"""
 
 import logging
 import os
@@ -102,13 +71,10 @@ PREVIEW_MAX_W    = 1280       # resize preview window if wider than this
 SAVE_OUTPUT      = False      # default; overridden by --save-output flag
 
 # ── Pipe / RTSP output ────────────────────────────────────────────────────────
-# Path of the named pipe (FIFO) that live_streaming.cpp reads from.
-# The C++ program treats this as its input "camera" source via FFmpeg rawvideo.
+
 PIPE_PATH        = "/tmp/speed_pipe"
 
-# Frame format written into the pipe.
-# 4 bytes (little-endian uint32) width + 4 bytes height + raw BGR pixels.
-# The C++ / FFmpeg side must use:  -f rawvideo -pix_fmt bgr24 -video_size WxH
+
 PIPE_FRAME_HEADER_FMT = "<II"   # little-endian unsigned int, unsigned int
 
 
@@ -128,11 +94,7 @@ LOCAL_CALIBRATION_FILE = "calibration.json"
 
 
 def fetch_calibration(db, camera_id: str) -> Optional[dict]:
-    """
-    Load calibration in this priority order:
-      1. Local JSON file  (LOCAL_CALIBRATION_FILE) — tried first, no network needed
-      2. MongoDB          — fallback if the file is missing or doesn't have this camera_id
-    """
+   
     import json
 
     # ── 1. Try local file ────────────────────────────────────────────────

@@ -1,16 +1,19 @@
 # Production-Ready-Computer-Vision-Pipeline-for-Real-Time-Video-Analytics
 A real-time vehicle speed detection and monitoring system that uses YOLOv8 object detection, perspective transformation, and multi-object tracking to estimate vehicle speeds from CCTV/IP camera feeds. Detected vehicles are captured, uploaded to AWS S3, and logged to MongoDB — with live annotated video streamed via RTSP.
 # 🚗 Vehicle Speed Estimator
-
+ 
 A real-time vehicle speed detection and monitoring system that uses YOLOv8 object detection, perspective transformation, and multi-object tracking to estimate vehicle speeds from CCTV/IP camera feeds. Detected vehicles are captured, uploaded to AWS S3, and logged to MongoDB — with live annotated video streamed via RTSP.
-
+ 
+> **Custom-trained YOLOv8 model** — detects 7 Indian traffic vehicle classes: Car, Bus, Moped, Bike, Auto (rickshaw), Truck, and Tempo.
+ 
 ---
-
+ 
 ## 📋 Table of Contents
-
+ 
 - [Features](#features)
 - [System Architecture](#system-architecture)
 - [Tech Stack](#tech-stack)
+- [Supported Vehicle Classes](#supported-vehicle-classes)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -20,14 +23,14 @@ A real-time vehicle speed detection and monitoring system that uses YOLOv8 objec
 - [How It Works](#how-it-works)
 - [MongoDB Schema](#mongodb-schema)
 - [Environment Variables Reference](#environment-variables-reference)
+- [Training Results](#training-results)
 - [Security Notice](#security-notice)
 - [Troubleshooting](#troubleshooting)
-
 ---
-
+ 
 ## ✨ Features
-
-- **Real-time vehicle detection** using YOLOv8 (supports cars, motorcycles, buses, trucks)
+ 
+- **Real-time vehicle detection** using a custom-trained YOLOv8 model — supports **Cars, Buses, Mopeds, Bikes, Autos (rickshaws), Trucks, and Tempos**
 - **Speed estimation** via perspective-corrected homography and frame-to-frame displacement
 - **Multi-object tracking** using ByteTrack (Supervision) with IoU-based fallback tracker
 - **Overspeed alerting** — bounding boxes turn red when a vehicle exceeds the configured speed limit
@@ -37,17 +40,17 @@ A real-time vehicle speed detection and monitoring system that uses YOLOv8 objec
 - **RTSP live streaming** — annotated video is forwarded via a C++ companion binary (`live_streaming.exe`) through FFmpeg to a MediaMTX RTSP server
 - **GPU/CPU auto-detection** — uses YOLOv8 `.pt` on CUDA if available, falls back to OpenVINO on CPU
 - **Blur filtering** — skips blurry frames and crops to maintain data quality
-
 ---
-
+ 
 ## 🏗️ System Architecture
-
+ 
 ```
 IP Camera (RTSP)
         │
         ▼
 speed_estimator.py
-  ├── YOLOv8 detection (GPU / OpenVINO CPU)
+  ├── Custom YOLOv8 detection (GPU / OpenVINO CPU)
+  │     └── 7 classes: Car, Bus, Moped, Bike, Auto, Truck, Tempo
   ├── ByteTrack / SimpleTracker
   ├── ViewTransformer (homography)
   ├── Speed calculation (m/s → km/h)
@@ -68,14 +71,14 @@ speed_estimator.py
               ▼
       RTSP consumers / dashboards
 ```
-
+ 
 ---
-
+ 
 ## 🛠️ Tech Stack
-
+ 
 | Layer | Technology |
 |---|---|
-| Detection | [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) |
+| Detection | [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics) (custom-trained) |
 | Tracking | [Supervision ByteTrack](https://github.com/roboflow/supervision) |
 | Computer Vision | OpenCV, NumPy |
 | Deep Learning | PyTorch (CUDA) / OpenVINO (CPU) |
@@ -84,35 +87,56 @@ speed_estimator.py
 | Streaming | FFmpeg + MediaMTX |
 | Streaming bridge | Custom C++ TCP→RTSP forwarder (`live_streaming.cpp`) |
 | Config | python-dotenv |
-
+ 
 ---
-
+ 
+## 🚗 Supported Vehicle Classes
+ 
+The model was custom-trained on Indian road traffic data to detect the following 7 vehicle types:
+ 
+| Class | Bounding Box Color | Description |
+|---|---|---|
+| **Car** | 🔴 Red | Passenger cars, SUVs, hatchbacks |
+| **Bus** | 🟣 Magenta | School buses, city buses, mini-buses |
+| **Moped** | 🩵 Cyan | Scooters, mopeds, two-wheelers with bodywork |
+| **Bike** | 🩵 Cyan | Motorcycles and motorbikes |
+| **Auto** | 🔵 Dark Blue | Auto-rickshaws (tuk-tuks) |
+| **Truck** | 🩵 Cyan | Heavy trucks and commercial vehicles |
+| **Tempo** | ⬜ White | Mini-trucks, delivery tempos, three-wheeled cargo vehicles |
+ 
+> Overspeed vehicles of any class are highlighted with a **red** bounding box regardless of their default color.
+ 
+---
+ 
 ## 📁 Project Structure
-
+ 
 ```
 vehicle-speed-estimator/
 ├── speed_estimator.py       # Main application — detection, tracking, speed estimation
 ├── live_streaming.cpp       # C++ RTSP forwarder (compile to live_streaming.exe)
 ├── live_streaming.exe       # Pre-compiled Windows binary (or compile yourself)
 ├── calibration.json         # Perspective calibration points for the camera
+├── assets/                  # Training result images for README
+│   ├── train_batch0.jpg
+│   ├── train_batch2.jpg
+│   └── val_batch2_pred.jpg
 ├── .env                     # Environment variables (DO NOT COMMIT — see Security)
 ├── .env.example             # Template for environment variables
 └── README.md
 ```
-
+ 
 ---
-
+ 
 ## ✅ Prerequisites
-
+ 
 - Python 3.10+
 - FFmpeg installed and available on `PATH`
 - A running [MediaMTX](https://github.com/bluenviron/mediamtx) RTSP server (or any RTSP server)
 - MongoDB Atlas cluster (or local MongoDB)
 - AWS S3 bucket with appropriate IAM permissions
 - (Optional) NVIDIA GPU with CUDA for hardware-accelerated inference
-
 **Python packages:**
-
+ 
 ```
 ultralytics
 supervision
@@ -123,20 +147,18 @@ pymongo
 boto3
 python-dotenv
 ```
-
+ 
 ---
-
+ 
 ## 🚀 Installation
-
+ 
 1. **Clone the repository**
-
 ```bash
 git clone https://github.com/your-username/vehicle-speed-estimator.git
 cd vehicle-speed-estimator
 ```
-
+ 
 2. **Create and activate a virtual environment**
-
 ```bash
 python -m venv venv
 # Windows
@@ -144,55 +166,52 @@ venv\Scripts\activate
 # Linux / macOS
 source venv/bin/activate
 ```
-
+ 
 3. **Install Python dependencies**
-
 ```bash
 pip install ultralytics supervision opencv-python numpy torch pymongo boto3 python-dotenv
 ```
-
+ 
 > For GPU inference, install the CUDA-enabled version of PyTorch from [pytorch.org](https://pytorch.org/get-started/locally/).
-
+ 
 4. **Configure environment variables**
-
 ```bash
 cp .env.example .env
 # Edit .env with your actual credentials and settings
 ```
-
+ 
 5. **(Optional) Compile the C++ streaming bridge**
-
 ```bash
 # Windows (MinGW / MSYS2)
 g++ -std=c++17 -o live_streaming.exe live_streaming.cpp -lws2_32 -lpthread
-
+ 
 # Linux
 g++ -std=c++17 -o live_streaming live_streaming.cpp -lpthread
 ```
-
+ 
 ---
-
+ 
 ## ⚙️ Configuration
-
+ 
 Copy `.env.example` to `.env` and fill in your values:
-
+ 
 ```env
 # AWS S3
 AWS_ACCESS_KEY=YOUR_ACCESS_KEY
 AWS_SECRET_KEY=YOUR_SECRET_KEY
 AWS_REGION=us-east-1
 AWS_BUCKET_NAME=your-bucket-name
-
+ 
 # MongoDB
 MONGO_URI=mongodb+srv://user:password@cluster.mongodb.net/
 MONGO_DB_NAME=vehicle
-
+ 
 # Camera / Stream
 SOURCE_MODE=python
 RUN_SOURCE=rtsp://admin:password@192.168.1.2:554/stream
 RUN_CAMERA_ID=CAM_001
 RUN_SPEED_LIMIT=80
-
+ 
 # Live Streaming (C++ bridge → FFmpeg → MediaMTX)
 FRAME_PORT=9000
 FRAME_WIDTH=1920
@@ -202,10 +221,10 @@ EC2_SERVER=your.ec2.ip.address
 STREAM_NAME=mycamera
 MEDIAMTX_USERNAME=publisher
 MEDIAMTX_PASSWORD=yourSecurePassword
-
+ 
 # Quality: LOW / MEDIUM / HIGH
 QUALITY=HIGH
-
+ 
 # App flags
 RUN_SHOW_PREVIEW=False
 RUN_SAVE_OUTPUT=False
@@ -213,15 +232,15 @@ RUN_FRAME_STEP=1
 RUN_RTSP_OUTPUT=enabled
 RUN_LS_EXE=live_streaming.exe
 ```
-
+ 
 ---
-
+ 
 ## 📐 Calibration
-
+ 
 Calibration maps a trapezoidal region of the camera image to a real-world rectangular area (in metres). This is used to compute accurate distances and therefore speeds.
-
+ 
 **`calibration.json` format:**
-
+ 
 ```json
 {
   "source_points": [
@@ -236,63 +255,61 @@ Calibration maps a trapezoidal region of the camera image to a real-world rectan
   "frame_height": 1620
 }
 ```
-
+ 
 | Field | Description |
 |---|---|
 | `source_points` | Four pixel coordinates (top-left, top-right, bottom-right, bottom-left) forming the road region of interest |
 | `real_width_m` | Actual width of the road segment in metres |
 | `real_length_m` | Actual length of the road segment in metres |
 | `frame_width` / `frame_height` | Resolution at which the points were measured (auto-scaled if your stream differs) |
-
+ 
 The calibration can be stored either locally as `calibration.json` or in the MongoDB `calibration` collection with a matching `camera_id` field.
-
+ 
 ---
-
+ 
 ## ▶️ Running the System
-
+ 
 ```bash
 python speed_estimator.py
 ```
-
+ 
 The script will:
 1. Connect to MongoDB and load calibration data
 2. Auto-detect GPU (CUDA) or fall back to OpenVINO on CPU
 3. Launch `live_streaming.exe` (if `RUN_RTSP_OUTPUT=enabled`)
 4. Open the configured camera source
 5. Begin detection, tracking, speed estimation, and streaming
-
 **Stop with `Ctrl+C`** — all resources (camera, writer, socket, subprocess) are cleaned up gracefully.
-
+ 
 ---
-
+ 
 ## ⚙️ How It Works
-
+ 
 ### Speed Estimation Pipeline
-
+ 
 1. **Frame capture** — frames are read from an RTSP stream (or video file / webcam)
 2. **Blur check** — frames with a Laplacian variance below the threshold are discarded
-3. **YOLOv8 inference** — detects vehicles (cars, motorcycles, buses, trucks)
+3. **YOLOv8 inference** — custom model detects all 7 vehicle classes
 4. **Tracking** — ByteTrack assigns persistent IDs across frames
 5. **Perspective transform** — bounding box bottom-center points are projected from pixel space to real-world metres using homography
 6. **Speed calculation** — displacement over time (metres per second → km/h) is computed from the coordinate history sliding window
 7. **Snapshot buffering** — `VehicleFrameBuffer` collects 5 sharp, spaced-out crops per vehicle
 8. **Async upload** — once 5 frames are collected, a background thread uploads them to S3 and inserts a record into MongoDB
-
 ### Live Streaming
-
+ 
 Annotated frames are sent as raw BGR bytes over a local TCP socket to `live_streaming.exe`, which pipes them into FFmpeg for H.264 encoding and RTSP forwarding to a MediaMTX server.
-
+ 
 ---
-
+ 
 ## 🗄️ MongoDB Schema
-
+ 
 **Collection: `speedEstimates`**
-
+ 
 ```json
 {
   "vehicleID":   "1863",
   "camera_id":   "CAM_001",
-  "vehicleType": "truck",
+  "vehicleType": "auto",
   "speed":       "54.2 KM/H",
   "limit":       80,
   "numPlate":    null,
@@ -304,11 +321,13 @@ Annotated frames are sent as raw BGR bytes over a local TCP socket to `live_stre
   "status":      false
 }
 ```
-
+ 
+**`vehicleType` possible values:** `car`, `bus`, `moped`, `bike`, `auto`, `truck`, `tempo`
+ 
 ---
-
+ 
 ## 🔐 Environment Variables Reference
-
+ 
 | Variable | Required | Description |
 |---|---|---|
 | `AWS_ACCESS_KEY` | Yes | AWS IAM access key ID |
@@ -333,51 +352,80 @@ Annotated frames are sent as raw BGR bytes over a local TCP socket to `live_stre
 | `RUN_FRAME_STEP` | No | Process every Nth frame (default: 1) |
 | `RUN_RTSP_OUTPUT` | No | Enable RTSP output via live_streaming.exe (default: enabled) |
 | `RUN_LS_EXE` | No | Path to live_streaming.exe (default: `./live_streaming.exe`) |
-
+ 
 ---
-
+ 
+## 📊 Training Results
+ 
+The custom YOLOv8 model was trained on Indian road traffic footage covering all 7 vehicle classes.
+ 
+### Training Batches (Ground Truth Labels)
+ 
+**Batch 0 — Mixed classes during training:**
+ 
+![Training Batch 0](assets/train_batch0.jpg)
+ 
+**Batch 2 — Ground truth annotations:**
+ 
+![Training Batch 2](assets/train_batch2.jpg)
+ 
+### Validation Predictions
+ 
+Model predictions on the validation set, showing bounding boxes and confidence scores across all 7 classes:
+ 
+![Validation Predictions](assets/val_batch2_pred.jpg)
+ 
+> Place your training result images in the `assets/` folder and push them to GitHub for the images above to render correctly.
+ 
+---
+ 
 ## 🔒 Security Notice
-
+ 
 > **⚠️ IMPORTANT — Never commit your `.env` file to version control.**
-
+ 
 Your `.env` file contains sensitive credentials including AWS access keys and your MongoDB connection string. Exposing these publicly can lead to unauthorized cloud usage and data breaches.
-
+ 
 **Before pushing to GitHub:**
-
+ 
 1. Add `.env` to `.gitignore`:
-   ```
+```
    .env
    *.log
    __pycache__/
    *.pt
    yolov8n_openvino_model/
    output_*.mp4
-   ```
-
+```
+ 
 2. Provide an `.env.example` with placeholder values (no real credentials).
-
 3. If credentials were ever committed, **rotate them immediately**:
    - AWS: generate new keys in IAM and deactivate the old ones
    - MongoDB: reset the database user password
-
 ---
-
+ 
 ## 🐛 Troubleshooting
-
+ 
 **`No calibration found for camera 'CAM_001'`**
 → Make sure `calibration.json` is in the same directory, or that a matching document exists in the MongoDB `calibration` collection.
-
+ 
 **`live_streaming.exe not found`**
 → Either compile from `live_streaming.cpp` or set `RUN_RTSP_OUTPUT=disabled` in `.env` to disable RTSP streaming.
-
+ 
 **`ultralytics not installed`**
 → Run `pip install ultralytics`
-
+ 
 **`boto3 not installed — S3 upload disabled`**
 → Run `pip install boto3`. S3 upload is optional; the system runs without it.
-
+ 
+**Vehicle class not detected correctly**
+→ Make sure you are loading the custom-trained `.pt` model file, not the default YOLOv8 weights. The default YOLOv8 model does not include Moped, Auto, or Tempo classes.
+ 
 **Low speed accuracy**
 → Verify that `source_points` in `calibration.json` correctly covers a measurable road section, and that `real_width_m` / `real_length_m` reflect accurate real-world dimensions.
-
+ 
 **No GPU detected / falling back to CPU**
+→ Ensure CUDA-enabled PyTorch is installed and the NVIDIA driver is up to date. The system will use OpenVINO automatically if no GPU is found.
+ 
+**Moped / Auto / Tempo not being detected**
+→ These classes are only available in the custom-trained model. Confirm the correct model weights file is specified in `speed_estimator.py`.
 → Ensure CUDA-enabled PyTorch is installed and the NVIDIA driver is up to date. The system will use OpenVINO automatically if no GPU is found.
